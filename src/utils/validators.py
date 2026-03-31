@@ -1,12 +1,14 @@
 """Data validation schemas using Pydantic."""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class WeatherDataSchema(BaseModel):
     """Schema for weather data validation."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     city: str = Field(..., min_length=1, max_length=100)
     temperature: float = Field(..., ge=-273.15, le=70.0)  # Valid temp range
@@ -26,16 +28,12 @@ class WeatherDataSchema(BaseModel):
         """Validate and clean description."""
         return v.strip().lower()
 
-    class Config:
-        """Pydantic config."""
-        str_strip_whitespace = True
-
 
 class BatchWeatherDataSchema(BaseModel):
     """Schema for batch weather data validation."""
 
     data: list[WeatherDataSchema]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     record_count: int
 
     @field_validator('record_count')
