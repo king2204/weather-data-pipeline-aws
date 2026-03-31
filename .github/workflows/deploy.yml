@@ -1,0 +1,102 @@
+name: Deploy - Infrastructure & Lambda
+
+on:
+  push:
+    tags:
+      - 'v*'  # Deploy on version tags
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive infrastructure/
+
+      - name: Terraform Init
+        run: cd infrastructure && terraform init
+
+      - name: Terraform Plan
+        run: cd infrastructure && terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: cd infrastructure && terraform apply -auto-approve tfplan
+
+      - name: Get Lambda outputs
+        id: tf-output
+        run: |
+          cd infrastructure
+          echo "lambda_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
+          echo "s3_bucket=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+
+      - name: Build Lambda package
+        run: |
+          cd src
+          zip -r ../lambda_function.zip .
+          cd ..
+
+      - name: Update Lambda code
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ steps.tf-output.outputs.lambda_name }} \
+            --zip-file fileb://lambda_function.zip
+
+      - name: Test Lambda invocation
+        run: |
+          aws lambda invoke \
+            --function-name ${{ steps.tf-output.outputs.lambda_name }} \
+            --payload '{"cities": ["Bangkok"]}' \
+            response.json
+          cat response.json
+
+      - name: Store deployment info
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-info
+          path: |
+            response.json
+            infrastructure/tfplan
+
+      - name: Create Release Notes
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Deployment Summary
+            - Lambda Function: ${{ steps.tf-output.outputs.lambda_name }}
+            - S3 Bucket: ${{ steps.tf-output.outputs.s3_bucket }}
+            - Region: ap-southeast-1
+            - Deployment Date: $(date)
+
+            View deployment details in the artifact
+          draft: false
+          prerelease: false

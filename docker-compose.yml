@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # ETL Pipeline Service
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weather-etl-pipeline
+    environment:
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    networks:
+      - weather-network
+    depends_on:
+      - localstack
+    command: python main.py
+
+  # LocalStack (Local AWS Service Simulation)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack-weather
+    environment:
+      - SERVICES=s3,lambda,cloudwatch
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=ap-southeast-1
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    volumes:
+      - "${TMPDIR}/.localstack:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - weather-network
+    healthcheck:
+      test: ["CMD", "awslocal", "s3", "ls"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  weather-network:
+    driver: bridge
+
+volumes:
+  localstack-data:
