@@ -384,11 +384,17 @@ weather-elt-pipeline/
 
 MIT License - see LICENSE file for details
 
-## 📧 Support
+## 📊 Data Visualization
 
-- Create an issue on GitHub
-- Check existing issues and discussions
-- Email: support@example.com
+The pipeline generates automated Tableau-style dashboards with the following visualizations:
+
+![Weather Dashboard Tableau](./docs/weather_dashboard_tableau.png)
+
+**Dashboard Features:**
+- **Temperature Distribution** (Pie Chart) - Categorizes cities by temperature ranges (Hot/Warm/Cool)
+- **Top Cities by Temperature** (Horizontal Bar Chart) - Shows top 12 cities with temperature percentages
+- **Humidity Distribution** (Pie Chart) - Categorizes cities by humidity levels
+- **Weather Statistics** (Summary Box) - Key metrics including min/max/avg temperatures and humidity
 
 ## 🙏 Acknowledgments
 
