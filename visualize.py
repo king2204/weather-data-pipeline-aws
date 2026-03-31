@@ -53,22 +53,29 @@ def visualize_weather_data(csv_file="data/weather_data.csv"):
         
         # ========== Donut Chart: จังหวัดและอุณหภูมิ ==========
         ax2 = fig.add_subplot(gs[0, 1])
-        
-        # สร้าง abbreviation ให้จังหวัด
-        city_labels = [city[:3].upper() for city in df_display['city']]
+
         temps = df_display['temperature'].values
-        
+        city_labels = [f"{city[:3].upper()}\n{t:.1f}°" for city, t in zip(df_display['city'], temps)]
+
         # สีตามอุณหภูมิ
         colors_temp = ['#FF1111' if t > 28 else '#FF9900' if t >= 25 else '#4488FF' for t in temps]
-        
-        wedges, texts, autotexts = ax2.pie(temps, labels=city_labels, autopct='%1.1f°',
+
+        # ใช้ pct_distance เพื่อให้ autolabels อยู่นอกวงกลม
+        wedges, texts, autotexts = ax2.pie(temps, labels=None, autopct='',
                                             colors=colors_temp, startangle=90,
                                             textprops={'fontsize': 8, 'fontweight': 'bold'})
-        
+
         # เพิ่มวงกลมตรงกลางให้เป็น Donut
         centre_circle = plt.Circle((0, 0), 0.70, fc='white')
         ax2.add_artist(centre_circle)
-        
+
+        # สร้างคำอธิบายด้านบน
+        legend_text = ", ".join([f"{city[:3].upper()} {t:.1f}°"
+                                 for city, t in zip(df_display['city'], temps)])
+        ax2.text(0.5, -1.35, legend_text, transform=ax2.transAxes,
+                fontsize=8, ha='center', wrap=True,
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+
         ax2.set_title('Temperature by City (Donut Chart)', fontsize=13, fontweight='bold', pad=15)
         
         # ========== Pie Chart 2: ความชื้น ==========
